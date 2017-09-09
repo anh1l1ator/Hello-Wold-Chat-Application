@@ -1,6 +1,8 @@
 package commonsware.com.charapplication1;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
@@ -21,6 +23,12 @@ import com.google.gson.Gson;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 class DataToSend {
     public String idToken;
@@ -47,24 +55,13 @@ public class MainActivity extends AppCompatActivity implements
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void handleSignInResult(GoogleSignInResult result) throws IOException {
         Log.i(TAG, "handle Sign in Result Called");
-        if (result.isSuccess()) {
+        if (result.isSuccess() && result.getSignInAccount()!=null) {
             GoogleSignInAccount acct = result.getSignInAccount();
             Gson gson = new Gson();
             DataToSend dataToSend = new DataToSend(acct.getIdToken());
             final String json = gson.toJson(dataToSend);
             final String url =  getString(R.string.apiUrl);
-            String res;
-            try {
-                res = new HttpPostRequest().execute(url,json).get();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-                res = getString(R.string.wentWrong);
-            } catch (ExecutionException e) {
-                e.printStackTrace();
-                res = getString(R.string.wentWrong);
-            }
-            Log.i(TAG, "Successful completion of post Method");
-            Toast.makeText(getApplicationContext(), res, Toast.LENGTH_SHORT).show();
+            new HttpPostRequest().execute(url,json);
         } else {
             Toast.makeText(getApplicationContext(), R.string.wentWrong, Toast.LENGTH_SHORT).show();
         }
@@ -114,4 +111,45 @@ public class MainActivity extends AppCompatActivity implements
         startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
+    private class HttpPostRequest extends AsyncTask<String, Object, String> {
+
+        private final MediaType JSON
+                = MediaType.parse("application/json; charset=utf-8");
+        OkHttpClient client = new OkHttpClient();
+        ProgressDialog pdLoading = new ProgressDialog(MainActivity.this);
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            pdLoading.setMessage("\tLoading...");
+            pdLoading.show();
+        }
+
+        @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+        @Override
+        protected String doInBackground(String... strings) {
+            final String url = strings[0];
+            final String json = strings[1];
+            RequestBody body = RequestBody.create(JSON, json);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .post(body)
+                    .build();
+            try (Response response = client.newCall(request).execute()) {
+                return response.body().string();
+            } catch (IOException e) {
+                e.printStackTrace();
+                return url;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            super.onPostExecute(result);
+            Toast.makeText(getApplicationContext(), result, Toast.LENGTH_LONG).show();
+            Log.i(TAG, "Successful completion of post Method");
+            Log.i(TAG, result);
+            pdLoading.dismiss();
+        }
+    }
 }
