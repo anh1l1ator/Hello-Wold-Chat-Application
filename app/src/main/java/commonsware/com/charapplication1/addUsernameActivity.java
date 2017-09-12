@@ -28,7 +28,9 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -43,12 +45,14 @@ import static android.R.attr.key;
 public class addUsernameActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final String TAG = "addUsernameActivity";
-    private ArrayList<DataToReceive> friendList = new ArrayList<>();
+    private Gson gson;
     private SharedPreferences sharedPref;
-    private DataToReceive userData;
     private String sharedPrefFile;
     private final Type listOfStringObject = new TypeToken<List<DataToReceive>>(){}.getType();
-    private Gson gson;
+
+    private DataToReceive userData;
+    private ArrayList<DataToReceive> friendList = new ArrayList<>();
+    Set<String> handles = new HashSet<String>();
 
     private void updateUi() {
         ListView listView = (ListView)findViewById(R.id.listOfHandles);
@@ -59,38 +63,66 @@ public class addUsernameActivity extends AppCompatActivity implements View.OnCli
         listView.setAdapter(arrayAdapter);
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_add_username);
+    private void initialiseUi() {
         findViewById(R.id.addFriend).setOnClickListener(this);
         EditText editText = (EditText)findViewById(R.id.handleTextBox);
         editText.setHint(getString(R.string.handle_eg_anh1l1ator));
         ListView listView = (ListView)findViewById(R.id.listOfHandles);
         listView.setOnItemClickListener(mMessageClickedHandler);
-        final String data = getIntent().getStringExtra(getString(R.string.keyToPassData));
-        gson = new Gson();
-        userData = gson.fromJson(data, DataToReceive.class);
+        Log.i(TAG,"UI initialised");
+    }
+
+    private void  initialiseSharedPref() {
         Context context = getApplicationContext();
         sharedPrefFile = getString(R.string.preference_file_key) + TAG + userData.getHandle();
         sharedPref = context.getSharedPreferences(sharedPrefFile, Context.MODE_PRIVATE);
-        final String defaultValue = "[]";
-        final String arrayList = sharedPref.getString(sharedPrefFile, defaultValue);
-        friendList = gson.fromJson(arrayList, listOfStringObject);
-        updateUi();
+        Log.i(TAG,"SharedPref updated");
+    }
+
+    private void executeBackgroundService() {
         Intent serviceIntent = new Intent(this, backgroundServiceForMessages.class);
         serviceIntent.putExtra(getString(R.string.keyForbgservice),userData.getHandle());
         startService(serviceIntent);
+        Log.i(TAG,"BG executed");
+    }
+
+    private void initialiseFriendList() {
+        final String defaultValue = "[]";
+        final String arrayList = sharedPref.getString(sharedPrefFile, defaultValue);
+        friendList = gson.fromJson(arrayList, listOfStringObject);
+        Log.i(TAG,"FriendList updated");
+    }
+
+    private void initialiseUserData() {
+        final String data = getIntent().getStringExtra(getString(R.string.keyToPassData));
+        userData = gson.fromJson(data, DataToReceive.class);
+        Log.i(TAG,"User data updated");
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_add_username);
+        gson = new Gson();
+        initialiseUi();
+        initialiseUserData();
+        initialiseSharedPref();
+        initialiseFriendList();
+        updateUi();
+        executeBackgroundService();
     }
 
     @Override
     public void onClick(View view) {
-        EditText editText = (EditText)findViewById(R.id.handleTextBox);
-        DataToSend dataToSend= new DataToSend();
-        dataToSend.setHandle(editText.getText().toString());
-        String json = gson.toJson(dataToSend);
-        String url  = getString(R.string.apiUrlHandleCheck);
-        new HttpPostRequest().execute(url,json,"POST");
+        EditText editText = (EditText) findViewById(R.id.handleTextBox);
+        DataToSend dataToSend = new DataToSend();
+        final String handle = editText.getText().toString();
+        if (!handles.contains(handle))  {
+            dataToSend.setHandle(handle);
+            String json = gson.toJson(dataToSend);
+            String url = getString(R.string.apiUrlHandleCheck);
+            new HttpPostRequest().execute(url, json, "POST");
+        }
     }
 
     private AdapterView.OnItemClickListener mMessageClickedHandler = new AdapterView.OnItemClickListener() {
@@ -111,8 +143,6 @@ public class addUsernameActivity extends AppCompatActivity implements View.OnCli
     @Override
     public void onDestroy() {
         super.onDestroy();
-//        Intent serviceIntent = new Intent(this, backgroundServiceForMessages.class);
-//        stopService(serviceIntent);
     }
 
     private class HttpPostRequest extends postRequestBaseClass {
@@ -128,7 +158,6 @@ public class addUsernameActivity extends AppCompatActivity implements View.OnCli
 
         @Override
         protected void onPostExecute(String result) {
-
             super.onPostExecute(result);
             Log.e(TAG, result);
             try {
@@ -136,6 +165,7 @@ public class addUsernameActivity extends AppCompatActivity implements View.OnCli
                 DataToReceive dataToReceive = gson.fromJson(result, DataToReceive.class);
                 if (dataToReceive.getHandleExists() != 0) {
                     friendList.add(dataToReceive);
+                    handles.add(dataToReceive.getHandle());
                     final String updatedFile = gson.toJson(friendList, listOfStringObject);
                     SharedPreferences.Editor editor = sharedPref.edit();
                     editor.putString(sharedPrefFile, updatedFile);

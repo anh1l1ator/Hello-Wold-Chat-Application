@@ -35,17 +35,21 @@ import java.util.Locale;
 
 public class ChatActivity extends AppCompatActivity implements View.OnClickListener {
 
-    private BroadcastReceiver broadcastReceiver;
-    private DataToReceive receiver, sender;
-    private User receivingUser, sendingUser;
-    private ChatView mChatView;
     public static final String TAG = "chatActivity";
-    private Gson gson = new Gson();
-    private ArrayList<MessageHolder> messageList= new ArrayList<>();
+    private DateFormat dateFormat=new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.CANADA);
     private final Type listOfMessageHolderObject = new TypeToken<List<MessageHolder>>(){}.getType();
     private String sharedPrefFile;
     private SharedPreferences sharedPref;
-    private DateFormat dateFormat=new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.CANADA);
+
+    private BroadcastReceiver broadcastReceiver;
+    private ChatView mChatView;
+    private Gson gson = new Gson();
+
+    private DataToReceive receiver;
+    private DataToReceive sender;
+    private User receivingUser;
+    private User sendingUser;
+    private ArrayList<MessageHolder> messageList= new ArrayList<>();
 
     @Override
     protected void onStart() {
@@ -62,7 +66,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
 
     private void updateUiForElement(MessageHolder messageHolder) {
         Message message;
-        if(messageHolder.getReceiver()==receiver) {
+        if(messageHolder.getSender()==receiver) {
             message = new Message.Builder()
                     .setUser(receivingUser)
                     .setRightMessage(true)
@@ -80,7 +84,6 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         mChatView.send(message);
     }
 
-
     private void updateUi() {
         int i;
         for(i=0;i<messageList.size();++i) {
@@ -88,33 +91,43 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_chat);
-        Intent intent = getIntent();
-        Bundle extras = intent.getExtras();
+    private void handleIntentExtras(Bundle extras) {
         final String receiverHandle = extras.getString(getString(R.string.receivingHandle));
         final String senderHandle = extras.getString(getString(R.string.sendingHandle));
         receiver = gson.fromJson(receiverHandle, DataToReceive.class);
         sender = gson.fromJson(senderHandle, DataToReceive.class);
+    }
+
+    private void initialiseUsers() {
         int myId = 0;
         Bitmap myIcon = BitmapFactory.decodeResource(getResources(), R.drawable.face_2);
         int yourId = 1;
         Bitmap yourIcon = BitmapFactory.decodeResource(getResources(), R.drawable.face_1);
         receivingUser = new User(myId, receiver.getName(), myIcon);
         sendingUser   = new User(yourId, sender.getName(), yourIcon);
+    }
+
+    private void initialiseChatView() {
         mChatView = (ChatView) findViewById(R.id.chat_view);
         mChatView.setOnClickSendButtonListener(this);
         mChatView.setBackgroundColor(getResources().getColor(R.color.cream));
         mChatView.setLeftBubbleColor(getResources().getColor(R.color.purple));
-        Context context = getApplicationContext();
-        sharedPrefFile = getString(R.string.preference_file_key)  + TAG + receiver.getHandle() + sender.getHandle();
-        sharedPref = context.getSharedPreferences(sharedPrefFile, Context.MODE_PRIVATE);
+    }
+
+    private void initialiseUi() {
         final String defaultValue = "[]";
         final String arrayList = sharedPref.getString(sharedPrefFile, defaultValue);
         messageList = gson.fromJson(arrayList, listOfMessageHolderObject);
         updateUi();
+    }
+
+    private void initialiseSharedPref() {
+        Context context = getApplicationContext();
+        sharedPrefFile = getString(R.string.preference_file_key)  + TAG + receiver.getHandle() + sender.getHandle();
+        sharedPref = context.getSharedPreferences(sharedPrefFile, Context.MODE_PRIVATE);
+    }
+
+    private void registerBroadcastReceiver() {
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -130,6 +143,32 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_chat);
+        Intent intent = getIntent();
+        handleIntentExtras(intent.getExtras());
+        initialiseUsers();
+        initialiseChatView();
+        initialiseSharedPref();
+        initialiseUi();
+        registerBroadcastReceiver();
+        setTitle(sender.getHandle());
+    }
+
+    private void sendMessage(Message message) {
+        Date date = new Date();
+        MessageHolder messageHolder = new MessageHolder();
+        messageHolder.setMessage(message.getMessageText());
+        messageHolder.setReceiver(sender);
+        messageHolder.setSender(receiver);
+        messageHolder.setDate(dateFormat.format(date));
+        messageList.add(messageHolder);
+        final String json = gson.toJson(messageHolder);
+        new HttpPostRequest().execute(getString(R.string.apiUrlMessage),json,"POST");
+    }
+
+    @Override
     public void onClick(View view) {
         Log.i(TAG, "Successfully called OnClick of Chat Activity!");
         Message message = new Message.Builder()
@@ -140,25 +179,21 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
                 .build();
         mChatView.send(message);
         mChatView.setInputText("");
-        Date date = new Date();
-        MessageHolder messageHolder = new MessageHolder();
-        messageHolder.setMessage(message.getMessageText());
-        messageHolder.setReceiver(sender);
-        messageHolder.setSender(receiver);
-        messageHolder.setDate(dateFormat.format(date));
-        messageList.add(messageHolder);
-        final String json = gson.toJson(messageHolder);
+        sendMessage(message);
         Log.i(TAG, "Json creation was successful!");
-        new HttpPostRequest().execute(getString(R.string.apiUrlMessage),json,"POST");
+    }
+
+    private void writeToFile() {
+        final String toWrite = gson.toJson(messageList, listOfMessageHolderObject);
+        SharedPreferences.Editor editor = sharedPref.edit();
+        editor.putString(sharedPrefFile, toWrite);
+        editor.commit();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        final String toWrite = gson.toJson(messageList, listOfMessageHolderObject);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString(sharedPrefFile, toWrite);
-        editor.commit();
+        writeToFile();
     }
 
     private class HttpPostRequest extends postRequestBaseClass {
@@ -174,7 +209,6 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
             Log.i(TAG, result);
             Toast.makeText(getApplicationContext(), result, Toast.LENGTH_LONG).show();
         }
-
     }
 
 }

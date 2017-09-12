@@ -114,6 +114,7 @@ public class backgroundServiceForMessages extends Service {
                             SharedPreferences.Editor editor = sharedPref.edit();
                             editor.putString(sharedPrefFile, toWrite);
                             editor.commit();
+
                             CharSequence notiText = "You have new message from "+listOfMessages.get(i).getSender().getHandle();
                             Intent intent01 = new Intent(this, MainActivity.class);
                             PendingIntent pIntent = PendingIntent.getActivity(this, 0, intent01, 0);
