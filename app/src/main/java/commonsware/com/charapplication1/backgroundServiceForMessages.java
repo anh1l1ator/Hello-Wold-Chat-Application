@@ -13,6 +13,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.content.LocalBroadcastManager;
@@ -45,22 +46,15 @@ public class backgroundServiceForMessages extends Service {
     private final Type listOfMessageHolderObject = new TypeToken<List<MessageHolder>>(){}.getType();
     private final String TAG = "backgroundService";
     private String handle ;
-    private DataToSend dataToSend;
     private Gson gson;
-    private String json ;
-    private String url ;
-    private String method ;
-    private RequestBody body;
     private Request request;
-
-    public backgroundServiceForMessages() {
-
-    }
 
     @Override
     public void onCreate() {
         super.onCreate();
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
+
+        thread.start();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -70,25 +64,24 @@ public class backgroundServiceForMessages extends Service {
         if(intent==null)return START_STICKY;
         Log.i("LocalService", "Received start id " + startId + ": " + intent);
         handle = intent.getStringExtra(getString(R.string.keyForbgservice));
-        dataToSend = new DataToSend();
+        DataToSend dataToSend = new DataToSend();
         gson = new Gson();
         dataToSend.setHandle(handle);
-        json = gson.toJson(dataToSend);
-        url = getString(R.string.apiUrlMessageReceive);
-        method = "POST";
-        body = RequestBody.create(JSON, json);
+        String json = gson.toJson(dataToSend);
+        String url = getString(R.string.apiUrlMessageReceive);
+        String method = "POST";
+        RequestBody body = RequestBody.create(JSON, json);
         request = new Request.Builder()
                 .url(url)
                 .method(method, body)
                 .build();
-        onHandleIntent();
+
         return START_STICKY;
     }
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-
         return null;
     }
 
@@ -144,5 +137,14 @@ public class backgroundServiceForMessages extends Service {
             }
         }
     }
+
+    Thread thread = new Thread(new Runnable(){
+        @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+        @Override
+        public void run() {
+            onHandleIntent();
+        }
+    });
+
 
 }

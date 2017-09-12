@@ -6,7 +6,7 @@
     tools:context="commonsware.com.charapplication1.ChatActivity">
     <com.github.bassaer.chatmessageview.views.ChatView
         android:id="@+id/chat_view"
-        android:layout_width="304dp"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
         tools:layout_editor_absoluteY="8dp"
         tools:layout_editor_absoluteX="8dp" />

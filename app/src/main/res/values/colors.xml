@@ -9,7 +9,7 @@
     <color name="blue_grey_800">#37474F</color>
     <color name="blue_grey_900">#263238</color>
     <color name="cream_dark">#000000</color>
-    <color name="cream">#ffffff</color>
+    <color name="cream">#FFFFFF</color>
+    <color name="purple">#ECB4FA</color>
     <color name="cream_darker">#F0DC82</color>
-
 </resources>

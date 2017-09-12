@@ -106,6 +106,8 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         sendingUser   = new User(yourId, sender.getName(), yourIcon);
         mChatView = (ChatView) findViewById(R.id.chat_view);
         mChatView.setOnClickSendButtonListener(this);
+        mChatView.setBackgroundColor(getResources().getColor(R.color.cream));
+        mChatView.setLeftBubbleColor(getResources().getColor(R.color.purple));
         Context context = getApplicationContext();
         sharedPrefFile = getString(R.string.preference_file_key)  + TAG + receiver.getHandle() + sender.getHandle();
         sharedPref = context.getSharedPreferences(sharedPrefFile, Context.MODE_PRIVATE);
