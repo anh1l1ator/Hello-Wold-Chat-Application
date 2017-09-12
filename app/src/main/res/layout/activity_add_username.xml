@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout0"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/cream"
@@ -9,45 +9,27 @@
     android:weightSum="4"
     tools:context="commonsware.com.charapplication1.addUsernameActivity">
 
-    <LinearLayout
-        android:layout_width="304dp"
-        android:layout_height="0dp"
-        android:layout_weight="3"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
-        android:weightSum="1"
-        tools:layout_editor_absoluteX="8dp"
-        tools:layout_editor_absoluteY="62dp">
-
-        <TextView
-            android:id="@+id/title_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:gravity="center"
-            android:text="@string/please_associate_your_account_with_a_handle"
-            android:textColor="@android:color/black"
-            android:textSize="24sp" />
-
-    </LinearLayout>
-
     <EditText
-        android:id="@+id/editText"
-        android:layout_width="wrap_content"
+        android:id="@+id/handleTextBox"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:ems="10"
-        android:inputType="textPersonName"
-        android:text="@string/handle_eg_anh1l1ator"
-        tools:layout_editor_absoluteX="49dp"
-        tools:layout_editor_absoluteY="120dp" />
+        android:inputType="textPersonName" />
 
     <Button
-        android:id="@+id/submitHandleButton"
-        android:layout_width="wrap_content"
+        android:id="@+id/addFriend"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_marginTop="0dp"
+        android:text="@string/add" />
+
+    <ListView
+        android:id="@+id/listOfHandles"
+        android:layout_width="319dp"
         android:layout_height="wrap_content"
-        android:text="@string/try_it"
-        tools:layout_editor_absoluteX="116dp"
-        tools:layout_editor_absoluteY="202dp" />
+        android:layout_marginTop="0dp" />
 
 
-</android.support.constraint.ConstraintLayout>
+</LinearLayout>
+
+

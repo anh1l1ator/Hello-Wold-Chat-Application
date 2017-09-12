@@ -1,8 +1,9 @@
 package commonsware.com.charapplication1;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
-import android.os.AsyncTask;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
@@ -22,26 +23,7 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.gson.Gson;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-
-class DataToSend {
-    public String idToken;
-    public DataToSend(String token) {
-        idToken = token;
-    }
-    public String getidToken(){
-        return idToken;
-    }
-    public void setidToken(String token){
-        idToken=token;
-    }
-};
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements
         GoogleApiClient.OnConnectionFailedListener,
@@ -50,7 +32,8 @@ public class MainActivity extends AppCompatActivity implements
     private static final String TAG = "MainActivity";
     private static GoogleApiClient mGoogleApiClient;
     private static final int RC_SIGN_IN = 9001;
-
+    private String sharedPrefFile;
+    private SharedPreferences sharedPref;
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
     private void handleSignInResult(GoogleSignInResult result) throws IOException {
@@ -58,10 +41,11 @@ public class MainActivity extends AppCompatActivity implements
         if (result.isSuccess() && result.getSignInAccount()!=null) {
             GoogleSignInAccount acct = result.getSignInAccount();
             Gson gson = new Gson();
-            DataToSend dataToSend = new DataToSend(acct.getIdToken());
+            DataToSend dataToSend = new DataToSend();
+            dataToSend.setIdToken(acct.getIdToken());
             final String json = gson.toJson(dataToSend);
-            final String url =  getString(R.string.apiUrl);
-            new HttpPostRequest().execute(url,json);
+            final String url =  getString(R.string.apiUrlSignup);
+            new HttpPostRequest().execute(url,json,"POST");
         } else {
             Toast.makeText(getApplicationContext(), R.string.wentWrong, Toast.LENGTH_SHORT).show();
         }
@@ -81,6 +65,17 @@ public class MainActivity extends AppCompatActivity implements
                 .addApi(Auth.GOOGLE_SIGN_IN_API, gso)
                 .build();
         findViewById(R.id.sign_in_button).setOnClickListener(this);
+        Context context = getApplicationContext();
+        sharedPrefFile = getString(R.string.preference_file_key) + TAG ;
+        sharedPref = context.getSharedPreferences(sharedPrefFile, Context.MODE_PRIVATE);
+        final String defaultValue = "";
+        final String handle = sharedPref.getString(sharedPrefFile, defaultValue);
+        if( handle!=null && !handle.isEmpty()){
+            Intent intent = new Intent(getApplicationContext(), addUsernameActivity.class);
+            intent.putExtra(getString(R.string.keyToPassData), handle);
+            intent.setFlags(intent.getFlags() | Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.KITKAT)
@@ -111,11 +106,8 @@ public class MainActivity extends AppCompatActivity implements
         startActivityForResult(signInIntent, RC_SIGN_IN);
     }
 
-    private class HttpPostRequest extends AsyncTask<String, Object, String> {
+    private class HttpPostRequest extends postRequestBaseClass {
 
-        private final MediaType JSON
-                = MediaType.parse("application/json; charset=utf-8");
-        OkHttpClient client = new OkHttpClient();
         ProgressDialog pdLoading = new ProgressDialog(MainActivity.this);
 
         @Override
@@ -125,31 +117,32 @@ public class MainActivity extends AppCompatActivity implements
             pdLoading.show();
         }
 
-        @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-        @Override
-        protected String doInBackground(String... strings) {
-            final String url = strings[0];
-            final String json = strings[1];
-            RequestBody body = RequestBody.create(JSON, json);
-            Request request = new Request.Builder()
-                    .url(url)
-                    .post(body)
-                    .build();
-            try (Response response = client.newCall(request).execute()) {
-                return response.body().string();
-            } catch (IOException e) {
-                e.printStackTrace();
-                return url;
-            }
-        }
-
         @Override
         protected void onPostExecute(String result) {
             super.onPostExecute(result);
-            Toast.makeText(getApplicationContext(), result, Toast.LENGTH_LONG).show();
-            Log.i(TAG, "Successful completion of post Method");
-            Log.i(TAG, result);
+            try {
+                Gson gson = new Gson();
+                Log.i(TAG, result);
+                DataToReceive dataToReceive = gson.fromJson(result, DataToReceive.class);
+                if (dataToReceive != null) {
+                    Log.i(TAG, dataToReceive.getHandle());
+                    Intent intent = new Intent(getApplicationContext(), addUsernameActivity.class);
+                    intent.putExtra(getString(R.string.keyToPassData), result);
+                    intent.setFlags(intent.getFlags() | Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    SharedPreferences.Editor editor = sharedPref.edit();
+                    editor.putString(sharedPrefFile, result);
+                    editor.commit();
+                    Log.i(TAG, "Successful completion of post Method");
+                    Log.i(TAG, result);
+                }
+            }
+            catch(Exception exception) {
+                Log.e(TAG, Arrays.toString(exception.getStackTrace()));
+                Toast.makeText(getApplicationContext(),R.string.wentWrong, Toast.LENGTH_LONG).show();
+            }
             pdLoading.dismiss();
         }
     }
+
 }
